@@ -121,6 +121,9 @@ private:
 	// ブロック用モデル
 	KamataEngine::Model* modelBlock_ = nullptr;
 
+	// 床の3Dモデル
+	KamataEngine::Model* groundModel_ = nullptr;
+
 	// スカイドーム用モデル
 	KamataEngine::Model* modelSkydome_ = nullptr;
 
@@ -207,5 +210,8 @@ private:
 	bool reloadRequested_ = false;
 
 	StageManager* stageManager_ = nullptr;
+
+	// 床のワールドトランスフォーム
+	KamataEngine::WorldTransform groundWorldTransform_;
 
 };

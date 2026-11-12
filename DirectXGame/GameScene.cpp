@@ -162,6 +162,7 @@ void GameScene::Initialize(StageManager* stageManager) {
 	// ======================
 	model_ = Model::Create();
 	modelBlock_ = Model::CreateFromOBJ("block", true);
+	groundModel_ = KamataEngine::Model::CreateFromOBJ("ground", true);
 	modelSkydome_ = Model::CreateFromOBJ("skydome", true);
 	playerModel_ = Model::CreateFromOBJ("player", true);
 	attackModel_ = Model::CreateFromOBJ("hit_effect", true);
@@ -196,6 +197,27 @@ void GameScene::Initialize(StageManager* stageManager) {
 
 	GenerateFieldObjects();
 
+	// ================================
+	// 床のワールドトランスフォーム初期化
+	// ================================
+
+	// ワールドトランスフォーム初期化
+	groundWorldTransform_.Initialize();
+
+	// 床の位置
+	groundWorldTransform_.translation_ = {0.0f, 0.0f, 0.0f};
+
+	// 床の拡大率
+	groundWorldTransform_.scale_ = {1.0f, 1.0f, 1.0f};
+
+	// 床の回転
+	groundWorldTransform_.rotation_ = {0.0f, 0.0f, 0.0f};
+
+	// ワールド行列を更新
+	UpdateWorldTransform(groundWorldTransform_);
+
+
+
 	// ======================
 	// やられパーティクル生成
 	// ======================
@@ -219,25 +241,24 @@ void GameScene::Initialize(StageManager* stageManager) {
 	skydome_ = new Skydome();
 	skydome_->Initialize(modelSkydome_, &camera_);
 
+	// ==============================
 	// カメラコントローラー
+	// ==============================
+
+	// カメラコントローラー生成
 	cameraController_ = new CameraController();
+
+	// 初期化
 	cameraController_->Initialize(&camera_);
+
+	// 追従対象をプレイヤーに設定
 	cameraController_->Settarget(player_);
 
-	// 移動範囲の指定
-	CameraController::Rect movableArea = {
-	    .left = 14.0f,
-	    .right = 85.0f,
-	    .bottom = 8.0f,
-	    .top = 11.0f,
-	};
-
-	cameraController_->SetMovableArea(movableArea);
+	// プレイヤーの位置にカメラを合わせる
 	cameraController_->Reset();
 
-	// 初期カメラを反映
+	// 初期カメラを更新
 	cameraController_->Update();
-	camera_.UpdateMatrix();
 
 	// ======================
 	// フェード初期化
@@ -262,6 +283,7 @@ GameScene::~GameScene() {
 	// モデル解放
 	delete model_;
 	delete modelBlock_; 
+	delete groundModel_;
 	delete modelSkydome_;
 
 	// プレイヤー解放
@@ -511,6 +533,15 @@ void GameScene::Draw() {
 
 	// 描画開始
 	Model::PreDraw();
+
+	
+    // ================================
+	// 床の描画
+	// ================================
+	if (groundModel_ != nullptr) {
+
+		groundModel_->Draw(groundWorldTransform_, camera_);
+	}
 
 	// ======================
 	// ブロック描画

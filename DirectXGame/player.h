@@ -240,4 +240,11 @@ private:
 
 	// ノックバックの強さ
 	static inline const float kKnockbackSpeed = 0.5f;
+
+	// ==============================
+	// 3D全方位移動
+	// ==============================
+
+	// プレイヤーの移動速度（1フレームあたり）
+	static inline constexpr float kMoveSpeed = 0.2f;
 };

@@ -2,6 +2,7 @@
 
 #include "Player.h"
 #include "math.h"
+#include <cmath>
 #include <algorithm>
 #include <numbers>
 #include "BaseEnemy.h"
@@ -146,94 +147,72 @@ void Player::Draw() {
 	}
 }
 
+// ==============================
+// プレイヤーの移動入力
+// XZ平面で8方向移動
+// ==============================
 void Player::InputMove() {
-	// ジャンプ
-	// 接地状態
-	if (onGrounded_) {
-		// 左右移動操作
-		// 左右加速
-		KamataEngine::Vector3 acceleration = {};
 
-		// 右入力
-		if (Input::GetInstance()->PushKey(DIK_RIGHT)) {
-			if (lrDirection_ != LRDirection::kRight) {
-				lrDirection_ = LRDirection::kRight;
-			}
+	// 移動方向
+	Vector3 moveDirection = {0.0f, 0.0f, 0.0f};
 
-			// 旋回開始時の角度を保存
-			trunFirstRotationY_ = worldTransform_.rotation_.y;
-			// 旋回タイマーに時間を設定する
-			turnTimer_ = 0.0f;
+	// ==============================
+	// キー入力
+	// ==============================
 
-			// 左入力中の右入力
-			if (velocity_.x < 0.0f) {
-				acceleration.x = (1.0f - kAcceleration);
-			}
-
-			acceleration.x = kAcceleration;
-		}
-		// 左入力
-		else if (Input::GetInstance()->PushKey(DIK_LEFT)) {
-
-			if (lrDirection_ != LRDirection::kLeft) {
-				lrDirection_ = LRDirection::kLeft;
-			}
-
-			// 旋回開始時の角度を保存
-			trunFirstRotationY_ = worldTransform_.rotation_.y;
-			// 旋回タイマーに時間を設定する
-			turnTimer_ = 0.0f;
-
-			// 右入力中の左入力
-			if (velocity_.x > 0.0f) {
-				acceleration.x = (1.0f - kAcceleration);
-			}
-			acceleration.x = -kAcceleration;
-		}
-		// 入力なし → 減衰
-		else {
-			velocity_.x *= (1.0f - kAttenuation);
-		}
-		// 加速
-		velocity_.x += acceleration.x;
-
-		// 速度上限
-		velocity_.x = std::clamp(velocity_.x, -kLimitRumSpeed, kLimitRumSpeed);
-
-		if (Input::GetInstance()->PushKey(DIK_UP)) {
-			// ジャンプ初速
-			velocity_.y = kJumpAcceleration;
-			onGrounded_ = false;
-		}
-	} else {
-		// 落下速度
-		velocity_.y -= kGravityAcceleration;
-		// 落下速度制限
-		// velocity_.y = std::max(velocity_.y, -kLimitFallSpeed);
+	// 前進（+Z）
+	if (Input::GetInstance()->PushKey(DIK_W)) {
+		moveDirection.z += 1.0f;
 	}
 
-	bool landing = false;
-
-	// 着地判定
-	if (onGrounded_) {
-		// ジャンプ開始
-		if (velocity_.y > 0.0f) {
-			// 空中状態に移行
-			onGrounded_ = false;
-		}
-	} else {
-		// 着地
-		if (landing) {
-			// めり込み排除
-			worldTransform_.translation_.y = 1.0f;
-			// 摩擦で横方向速度が減衰する
-			velocity_.x *= (1.0f - kAttenuation);
-			// 下方向速度をリセット
-			velocity_.y = 0.0f;
-			// 設置状態に移行
-			onGrounded_ = true;
-		}
+	// 後退（-Z）
+	if (Input::GetInstance()->PushKey(DIK_S)) {
+		moveDirection.z -= 1.0f;
 	}
+
+	// 左移動（-X）
+	if (Input::GetInstance()->PushKey(DIK_A)) {
+		moveDirection.x -= 1.0f;
+	}
+
+	// 右移動（+X）
+	if (Input::GetInstance()->PushKey(DIK_D)) {
+		moveDirection.x += 1.0f;
+	}
+
+	// ==============================
+	// 移動方向の正規化
+	// ==============================
+
+	float length = std::sqrt(moveDirection.x * moveDirection.x + moveDirection.z * moveDirection.z);
+
+	// 入力がある場合
+	if (length > 0.0f) {
+
+		// 斜め移動の速度を補正
+		moveDirection.x /= length;
+		moveDirection.z /= length;
+
+		// 移動速度を設定
+		velocity_.x = moveDirection.x * kMoveSpeed;
+		velocity_.z = moveDirection.z * kMoveSpeed;
+
+		// ==============================
+		// 移動方向にプレイヤーを回転
+		// ==============================
+
+		// モデルの正面がローカル+Z方向の場合
+		worldTransform_.rotation_.y = std::atan2(moveDirection.x, moveDirection.z);
+
+	} else {
+
+		// 入力がない場合は停止
+		velocity_.x = 0.0f;
+		velocity_.z = 0.0f;
+	}
+
+	// 平坦な床のため上下移動は行わない
+	velocity_.y = 0.0f;
 }
 
 KamataEngine::Vector3 Player::CornerPosition(const KamataEngine::Vector3& center, Corner corner) {
@@ -606,33 +585,35 @@ void Player::OnCollision(const BaseEnemy* enemy) {
 	isDead_ = true;
 }
 
+// ==============================
+// 通常行動更新
+// ==============================
 void Player::BehaviorRootUpdate() {
-	// ①移動入力
+
+	// ==============================
+	// 1. 移動入力
+	// ==============================
 	InputMove();
 
-	// ②移動量を加味して衝突判定する
-	CollisionMapInfo collisionMapInfo;
-	collisionMapInfo.blockPosition = velocity_;
+	// ==============================
+	// 2. XZ平面で移動
+	// ==============================
 
-	MapChipCollision(collisionMapInfo);
+	// X方向の移動
+	worldTransform_.translation_.x += velocity_.x;
 
-	// ③判定結果を反映して移動させる
-	Move(collisionMapInfo);
+	// Z方向の移動
+	worldTransform_.translation_.z += velocity_.z;
 
-	// ④天井に接触している場合の処理
-	CeilingCollision(collisionMapInfo);
+	// Y方向は変更しない
+	// 床の高さを維持する
 
-	// ⑤地面に接触している場合の処理
-	WallCollision(collisionMapInfo);
-
-	// ⑥接地状態の切り替え
-	OnGround(collisionMapInfo);
-
-	// ⑦旋回制御
-	Turn();
-
-	// ⑧行列計算
+	// ==============================
+	// 3. ワールド行列更新
+	// ==============================
 	UpdateWorldTransform(worldTransform_);
+
+	// GPUへ行列を転送
 	worldTransform_.TransferMatrix();
 }
 

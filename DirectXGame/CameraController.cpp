@@ -1,49 +1,80 @@
+
 #include "CameraController.h"
-#include "player.h"
-#include <algorithm>
-#include "math.h"
+#include "Player.h"
 
-#undef min
-#undef max
+#include <cmath>
 
-
+// ==============================
+// 初期化
+// ==============================
 void CameraController::Initialize(KamataEngine::Camera* camera) {
+
+	// カメラを保持
 	camera_ = camera;
+
+	// カメラ初期化
 	camera_->Initialize();
-}
 
-void CameraController::Update() {
-	//追従対象のワールドトランスフォームを参照
-	const KamataEngine::WorldTransform* playerWorldTransform = target_->GetWorldTransform();
-	//追従対象とオフセットと追従対象の速度からカメラの目標座標を計算
-	cameraTargetPosition_.x = playerWorldTransform->translation_.x + targetoffset_.x + target_->GetVelocity().x * kVelocityBias;
-	cameraTargetPosition_.y = playerWorldTransform->translation_.y + targetoffset_.y + target_->GetVelocity().y * kVelocityBias;
-	cameraTargetPosition_.z = playerWorldTransform->translation_.z + targetoffset_.z + target_->GetVelocity().z * kVelocityBias;
+	// ==============================
+	// カメラ回転
+	// ==============================
 
-	//座標保管によりゆったり追従
-	camera_->translation_ = Lerp(camera_->translation_, cameraTargetPosition_, kInterpolationRate);
-
-	//追従対象が画面外に出ないように補正
-	camera_->translation_.x = std::max(camera_->translation_.x, playerWorldTransform->translation_.x + kCameraMovableArea.left);
-	camera_->translation_.x = std::min(camera_->translation_.x, playerWorldTransform->translation_.x + kCameraMovableArea.right);
-	camera_->translation_.y = std::max(camera_->translation_.y, playerWorldTransform->translation_.y + kCameraMovableArea.bottom);
-	camera_->translation_.y = std::min(camera_->translation_.y, playerWorldTransform->translation_.y + kCameraMovableArea.top);
-
-
-	// カメラ移動範囲の制限
-	camera_->translation_.x = std::clamp(camera_->translation_.x, movableArea_.left, movableArea_.right);
-	camera_->translation_.y = std::clamp(camera_->translation_.y, movableArea_.bottom, movableArea_.top);
-	
+	// 斜め上からプレイヤーを見下ろす
+	camera_->rotation_ = {std::atan2(-targetoffset_.z, targetoffset_.y), 0.0f, 0.0f};
 
 	camera_->UpdateMatrix();
 }
 
-void CameraController::Reset() { 
-	const KamataEngine::WorldTransform* playerWorldTransform = target_->GetWorldTransform(); 
-	
-	camera_->translation_.x = playerWorldTransform->translation_.x + targetoffset_.x;
-	camera_->translation_.y = playerWorldTransform->translation_.y + targetoffset_.y;
-	camera_->translation_.z = playerWorldTransform->translation_.z + targetoffset_.z;
+// ==============================
+// 更新
+// ==============================
+void CameraController::Update() {
 
+	// 安全チェック
+	if (camera_ == nullptr || target_ == nullptr) {
+		return;
+	}
+
+	// プレイヤーのワールド座標
+	KamataEngine::Vector3 playerPosition = target_->GetWorldPosition();
+
+	// ==============================
+	// カメラの目標位置
+	// ==============================
+
+	cameraTargetPosition_ = {playerPosition.x + targetoffset_.x, playerPosition.y + targetoffset_.y, playerPosition.z + targetoffset_.z};
+
+	// ==============================
+	// カメラを即座に追従
+	// ==============================
+
+	// Lerp補間を使用しない
+	// プレイヤーを常に画面中央に維持
+	camera_->translation_ = cameraTargetPosition_;
+
+	// カメラ行列更新
+	camera_->UpdateMatrix();
+}
+
+// ==============================
+// リセット
+// ==============================
+void CameraController::Reset() {
+
+	// 安全チェック
+	if (camera_ == nullptr || target_ == nullptr) {
+		return;
+	}
+
+	// プレイヤーのワールド座標
+	KamataEngine::Vector3 playerPosition = target_->GetWorldPosition();
+
+	// ==============================
+	// カメラ位置を初期化
+	// ==============================
+
+	camera_->translation_ = {playerPosition.x + targetoffset_.x, playerPosition.y + targetoffset_.y, playerPosition.z + targetoffset_.z};
+
+	// 行列更新
 	camera_->UpdateMatrix();
 }
