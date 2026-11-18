@@ -5,6 +5,7 @@
 // ==============================
 #include "KamataEngine.h"
 #include "Player.h"
+#include "PlayerShooting.h"
 #include "BaseEnemy.h"
 #include "Enemy.h"
 #include "ShieldEnemy.h"
@@ -16,11 +17,15 @@
 #include "HitEffect.h"
 #include "BaseEffect.h"
 #include "GuardEffect.h"
+#include "Bullet.h"
+#include "BulletManager.h"
+#include <list>
 
 
 // ==============================
 // ゲームシーンクラス
 // ==============================
+class ResourceManager;
 class StageManager;
 class GameScene {
 public:
@@ -39,7 +44,7 @@ public:
 	/// ゲーム開始時に一度だけ呼ばれる
 	/// モデル・カメラ・プレイヤーなどの生成を行う
 	/// </summary>
-	void Initialize(StageManager* stageManager);
+	void Initialize(StageManager* stageManager, ResourceManager* resourceManager);
 
 	/// <summary>
 	/// 更新処理
@@ -213,5 +218,23 @@ private:
 
 	// 床のワールドトランスフォーム
 	KamataEngine::WorldTransform groundWorldTransform_;
+
+	// ==============================
+	// 弾管理
+	// ==============================
+	BulletManager bulletManager_;
+
+	// ==============================
+	// プレイヤー射撃管理
+	// ==============================
+	PlayerShooting playerShooting_;
+
+	// ==============================
+	// リソースマネージャー
+	// ==============================
+
+	// ResourceManagerが所有するため
+	// GameSceneではdeleteしない
+	ResourceManager* resourceManager_ = nullptr;
 
 };

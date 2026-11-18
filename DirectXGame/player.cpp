@@ -104,11 +104,11 @@ void Player::Update() {
 
 		Player::BehaviorRootUpdate();
 
-		// 攻撃キーを押したら
-		if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
-			// 攻撃ビヘイビアをリクエスト
-			behaviorRequest_ = Behavior::kAttack;
-		}
+		//// 攻撃キーを押したら
+		//if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
+		//	// 攻撃ビヘイビアをリクエスト
+		//	behaviorRequest_ = Behavior::kAttack;
+		//}
 
 		break;
 
@@ -845,4 +845,20 @@ void Player::BehaviorKnockbackUpdate() {
 
 		behaviorRequest_ = Behavior::kRoot;
 	}
+}
+
+// ==============================
+// マウス照準方向へ回転
+// ==============================
+void Player::SetAimDirection(const KamataEngine::Vector3& direction) {
+
+	// 照準方向からY軸回転角度を求める
+	// モデルの正面はローカル+Z方向
+	worldTransform_.rotation_.y = std::atan2(direction.x, direction.z);
+
+	// ワールド行列を更新
+	UpdateWorldTransform(worldTransform_);
+
+	// GPUへ転送
+	worldTransform_.TransferMatrix();
 }

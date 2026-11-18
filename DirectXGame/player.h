@@ -101,6 +101,9 @@ public:
 	//ワールド座標を取得
 	KamataEngine::Vector3 GetWorldPosition() const;
 
+	// マウス照準方向へプレイヤーを回転
+	void SetAimDirection(const KamataEngine::Vector3& direction);
+
 	AABB GetAABB();
 
 	//衝突応答

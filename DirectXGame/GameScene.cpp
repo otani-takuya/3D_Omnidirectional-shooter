@@ -1,6 +1,8 @@
 #include "GameScene.h"
 #include "math.h"
 #include "StageManager.h"
+#include "ResourceManager.h"
+#include <cmath>
 
 
 using namespace KamataEngine;
@@ -138,7 +140,13 @@ void GameScene::GenerateFieldObjects() {
 // ======================
 // 初期化処理
 // ======================
-void GameScene::Initialize(StageManager* stageManager) {
+void GameScene::Initialize(StageManager* stageManager, ResourceManager* resourceManager) {
+
+	assert(stageManager != nullptr);
+	assert(resourceManager != nullptr);
+
+	stageManager_ = stageManager;
+	resourceManager_ = resourceManager;
 
 	assert(stageManager != nullptr);
 
@@ -157,20 +165,39 @@ void GameScene::Initialize(StageManager* stageManager) {
 		
 	
 
-	// ======================
-	// モデル生成
-	// ======================
-	model_ = Model::Create();
-	modelBlock_ = Model::CreateFromOBJ("block", true);
-	groundModel_ = KamataEngine::Model::CreateFromOBJ("ground", true);
-	modelSkydome_ = Model::CreateFromOBJ("skydome", true);
-	playerModel_ = Model::CreateFromOBJ("player", true);
-	attackModel_ = Model::CreateFromOBJ("hit_effect", true);
-	enemyModel_ = Model::CreateFromOBJ("enemy", true);
-	shieldEnemyModel_ = Model::CreateFromOBJ("shieldEnemy", true);
-	deathParticlesModel_ = Model::CreateFromOBJ("deathparticle", true);
-	hitEffectModel_ = Model::CreateFromOBJ("particle", true);
-	guardEffectModel_ = Model::CreateFromOBJ("ring", true);
+	
+	// ==============================
+	// ResourceManagerからモデルを取得
+	// ==============================
+
+	// 標準モデル
+	model_ = resourceManager_->GetModel("default");
+
+	// フィールド
+	modelBlock_ = resourceManager_->GetModel("block");
+	groundModel_ = resourceManager_->GetModel("ground");
+	modelSkydome_ = resourceManager_->GetModel("skydome");
+
+	// プレイヤー
+	playerModel_ = resourceManager_->GetModel("player");
+	attackModel_ = resourceManager_->GetModel("hit_effect");
+
+	// 敵
+	enemyModel_ = resourceManager_->GetModel("enemy");
+	shieldEnemyModel_ = resourceManager_->GetModel("shieldEnemy");
+
+	// ==============================
+	// 弾管理クラスの初期化
+	// ==============================
+	bulletManager_.Initialize(resourceManager_->GetModel("bullet"));
+
+	// エフェクト
+	deathParticlesModel_ = resourceManager_->GetModel("deathparticle");
+
+	hitEffectModel_ = resourceManager_->GetModel("particle");
+
+	guardEffectModel_ = resourceManager_->GetModel("ring");
+
 
 	// ======================
 	// カメラ初期化
@@ -260,6 +287,11 @@ void GameScene::Initialize(StageManager* stageManager) {
 	// 初期カメラを更新
 	cameraController_->Update();
 
+	// ==============================
+	// PlayerShootingの初期化
+	// ==============================
+	playerShooting_.Initialize(player_, &bulletManager_, &camera_);
+
 	// ======================
 	// フェード初期化
 	// ======================
@@ -279,15 +311,6 @@ void GameScene::Initialize(StageManager* stageManager) {
 // デストラクタ（終了処理）
 // ======================
 GameScene::~GameScene() {
-
-	// モデル解放
-	delete model_;
-	delete modelBlock_; 
-	delete groundModel_;
-	delete modelSkydome_;
-
-	// プレイヤー解放
-	delete player_;
 
 	//敵解放
 	for (BaseEnemy* enemy : enemies_) {
@@ -325,21 +348,12 @@ GameScene::~GameScene() {
 	delete fade_;
 	fade_ = nullptr;
 
-	delete playerModel_;
-	delete attackModel_;
-	delete enemyModel_;
-	delete shieldEnemyModel_;
-	delete deathParticlesModel_;
-
 	// ヒットエフェクト解放
 	for (BaseEffect* effect : effects_) {
 		delete effect;
 	}
 
 	effects_.clear();
-
-	delete hitEffectModel_;
-	delete guardEffectModel_;
 }
 
 // ======================
@@ -396,17 +410,45 @@ case Phase::kFadeIn:
 	// スカイドーム更新
 	skydome_->Update();
 
+	
+	// ==============================
 	// プレイヤー更新
+	// ==============================
 	player_->Update();
 
+
+	// ==============================
 	// 敵更新
+	// ==============================
 	for (BaseEnemy* enemy : enemies_) {
 		enemy->Update();
 	}
 
+	// ==============================
 	// カメラ更新
+	// ==============================
 	cameraController_->Update();
 	camera_.UpdateMatrix();
+
+	// ==============================
+	// 射撃処理
+	// ==============================
+
+	if (!isDebugCameraActive_) {
+
+		// 通常カメラでは照準と射撃を更新
+		playerShooting_.Update();
+
+	} else {
+
+		// デバッグカメラ使用中は射撃状態をリセット
+		playerShooting_.ResetInput();
+	}
+
+	// ==============================
+	// 弾の更新
+	// ==============================
+	bulletManager_.Update();
 
 	// ブロック更新
 	for (auto& line : worldTransformBlocks_) {
@@ -570,8 +612,10 @@ void GameScene::Draw() {
 
 	player_->Draw();
 
+	// 弾の描画
+	bulletManager_.Draw(camera_);
 
-	// やあられパーティクル描画
+	// やられパーティクル描画
 	if (deathParticles_) {
 		deathParticles_->Draw();
 	}

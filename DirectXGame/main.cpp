@@ -2,6 +2,7 @@
 #include "KamataEngine.h"
 #include "StageManager.h"
 #include "TitleScene.h"
+#include "ResourceManager.h"
 
 #include <Windows.h>
 
@@ -22,6 +23,11 @@ GameScene* gameScene = nullptr;
 // ステージマネージャー
 // ==============================
 StageManager* stageManager = nullptr;
+
+// ==============================
+// リソースマネージャー
+// ==============================
+ResourceManager* resourceManager = nullptr;
 
 // ==============================
 // シーンの種類
@@ -76,6 +82,14 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	// ステージデータファイルを読み込む
 	stageManager->LoadStageDataCsv();
 
+	// ==============================
+	// リソースマネージャー生成
+	// ==============================
+	resourceManager = new ResourceManager();
+
+	// モデルを一括読み込み
+	resourceManager->Initialize();
+
 #ifdef _DEBUG
 
 	// ==============================
@@ -92,7 +106,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	gameScene = new GameScene();
 
 	// ゲームシーンを初期化
-	gameScene->Initialize(stageManager);
+	gameScene->Initialize(stageManager, resourceManager);
 
 #else
 
@@ -170,6 +184,19 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	// ==============================
 	delete stageManager;
 	stageManager = nullptr;
+
+	
+	// ==============================
+	// リソースマネージャーの解放
+	// ==============================
+
+	// 登録済みモデルをすべて解放
+	resourceManager->Finalize();
+
+	// ResourceManager本体を解放
+	delete resourceManager;
+	resourceManager = nullptr;
+
 
 	// ==============================
 	// エンジンの終了処理
@@ -276,7 +303,7 @@ void ChangeScene() {
 			gameScene = new GameScene();
 
 			// ゲームシーンを初期化
-			gameScene->Initialize(stageManager);
+			gameScene->Initialize(stageManager, resourceManager);
 		}
 
 		break;
@@ -320,7 +347,7 @@ void ChangeScene() {
 			gameScene = new GameScene();
 
 			// 現在ステージのCSVを再読み込み
-			gameScene->Initialize(stageManager);
+			gameScene->Initialize(stageManager, resourceManager);
 		}
 
 		break;
