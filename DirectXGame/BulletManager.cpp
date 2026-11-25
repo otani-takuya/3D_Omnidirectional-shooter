@@ -1,41 +1,40 @@
-
 #include "BulletManager.h"
 
 #include <cassert>
-
-using namespace KamataEngine;
+#include <utility>
 
 // ==============================
 // 初期化
 // ==============================
-void BulletManager::Initialize(Model* bulletModel) {
+void BulletManager::Initialize(KamataEngine::Model* bulletModel) {
 
-	assert(bulletModel != nullptr);
+	// モデルの有効性を確認
+	assert(bulletModel);
 
-	// 再初期化時に既存の弾を削除
+	// 既存の弾を削除
 	Clear();
 
-	// モデルはResourceManagerから借りる
+	// モデルを保持
 	bulletModel_ = bulletModel;
 }
 
 // ==============================
 // 弾の生成
 // ==============================
-void BulletManager::Fire(const Vector3& position, const Vector3& direction) {
+void BulletManager::Fire(const KamataEngine::Vector3& position, const KamataEngine::Vector3& direction, int damage) {
 
-	// モデル未設定の場合
-	if (bulletModel_ == nullptr) {
+	// モデルが無効な場合は生成しない
+	if (!bulletModel_) {
 		return;
 	}
 
-	// 新しい弾を生成
+	// 弾のインスタンスを生成
 	auto bullet = std::make_unique<Bullet>();
 
 	// 弾の初期化
-	bullet->Initialize(bulletModel_, position, direction);
+	bullet->Initialize(bulletModel_, position, direction, damage);
 
-	// リストに追加
+	// 管理リストに追加
 	bullets_.push_back(std::move(bullet));
 }
 
@@ -44,31 +43,57 @@ void BulletManager::Fire(const Vector3& position, const Vector3& direction) {
 // ==============================
 void BulletManager::Update() {
 
-	// すべての弾を更新
 	for (auto& bullet : bullets_) {
+
+		// 無効・削除対象の弾は更新しない
+		if (!bullet || bullet->IsDead()) {
+			continue;
+		}
+
+		// 弾を更新
 		bullet->Update();
 	}
+}
 
-	// 寿命が終了した弾を削除
-	bullets_.remove_if([](const std::unique_ptr<Bullet>& bullet) { return bullet->IsDead(); });
+// ==============================
+// 削除対象の弾を取り除く
+// ==============================
+void BulletManager::RemoveDeadBullets() {
+
+	bullets_.remove_if([](const std::unique_ptr<Bullet>& bullet) {
+		// 無効なポインタを削除
+		if (!bullet) {
+			return true;
+		}
+
+		// 削除対象の弾を削除
+		return bullet->IsDead();
+	});
 }
 
 // ==============================
 // 弾の描画
 // ==============================
-void BulletManager::Draw(Camera& camera) {
+void BulletManager::Draw(KamataEngine::Camera& camera) {
 
 	for (auto& bullet : bullets_) {
+
+		// 無効・削除対象の弾は描画しない
+		if (!bullet || bullet->IsDead()) {
+			continue;
+		}
+
+		// 弾を描画
 		bullet->Draw(camera);
 	}
 }
 
 // ==============================
-// 全弾削除
+// すべての弾を削除
 // ==============================
 void BulletManager::Clear() { bullets_.clear(); }
 
 // ==============================
-// 現在の弾数
+// 弾の数を取得
 // ==============================
 size_t BulletManager::GetBulletCount() const { return bullets_.size(); }

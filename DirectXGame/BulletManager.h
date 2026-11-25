@@ -1,4 +1,3 @@
-
 #pragma once
 
 #include "Bullet.h"
@@ -8,33 +7,54 @@
 #include <memory>
 
 // ==============================
-// 弾管理クラス
+// 弾の管理クラス
 // ==============================
 class BulletManager {
 public:
+	// ==============================
 	// 初期化
+	// ==============================
 	void Initialize(KamataEngine::Model* bulletModel);
 
+	// ==============================
 	// 弾の生成
-	void Fire(const KamataEngine::Vector3& position, const KamataEngine::Vector3& direction);
+	// ==============================
+	void Fire(const KamataEngine::Vector3& position, const KamataEngine::Vector3& direction, int damage = Bullet::kDefaultDamage);
 
-	// 弾の更新・寿命切れ削除
+	// ==============================
+	// 弾の更新
+	// ==============================
 	void Update();
 
-	// 全弾の描画
+	// ==============================
+	// 削除対象の弾を取り除く
+	// ==============================
+	void RemoveDeadBullets();
+
+	// ==============================
+	// 弾の描画
+	// ==============================
 	void Draw(KamataEngine::Camera& camera);
 
-	// 全弾を削除
+	// ==============================
+	// すべての弾を削除
+	// ==============================
 	void Clear();
 
-	// 現在の弾数を取得
+	// ==============================
+	// 弾の数を取得
+	// ==============================
 	size_t GetBulletCount() const;
 
+	// ==============================
+	// 弾のリストを取得
+	// ==============================
+	const std::list<std::unique_ptr<Bullet>>& GetBullets() const { return bullets_; }
+
 private:
-	// ResourceManagerが所有する共有モデル
-	// このクラスではdeleteしない
+	// 弾のモデル
 	KamataEngine::Model* bulletModel_ = nullptr;
 
-	// BulletManagerが弾を所有する
+	// 弾の管理リスト
 	std::list<std::unique_ptr<Bullet>> bullets_;
 };

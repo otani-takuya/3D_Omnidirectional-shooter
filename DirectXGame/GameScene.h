@@ -1,240 +1,182 @@
 #pragma once
 
-// ==============================
-// インクルード
-// ==============================
-#include "KamataEngine.h"
-#include "Player.h"
-#include "PlayerShooting.h"
-#include "BaseEnemy.h"
-#include "Enemy.h"
-#include "ShieldEnemy.h"
-#include "Skydome.h"
-#include "MapChipField.h"
+#include "BaseEffect.h"
+#include "BulletManager.h"
 #include "CameraController.h"
 #include "DeathParticles.h"
+#include "EnemyManager.h"
 #include "Fade.h"
-#include "HitEffect.h"
-#include "BaseEffect.h"
-#include "GuardEffect.h"
-#include "Bullet.h"
-#include "BulletManager.h"
+#include "KamataEngine.h"
+#include "MapChipField.h"
+#include "Player.h"
+#include "PlayerShooting.h"
+#include "Skydome.h"
 #include <list>
+#include <memory>
+#include <vector>
 
-
-// ==============================
-// ゲームシーンクラス
-// ==============================
 class ResourceManager;
 class StageManager;
+
+/// <summary>
+/// ゲーム全体の進行と各管理クラスの連携を担当する。
+/// 弾・敵の生成と寿命管理は専用Managerに委譲する。
+/// Initializeは新規インスタンスに対して一度だけ呼び出す。
+/// </summary>
 class GameScene {
 public:
-	// ==============================
-	// コンストラクタ / デストラクタ
-	// ==============================
 	GameScene() = default;
 	~GameScene();
-
-	// ==============================
-	// 基本処理
-	// ==============================
+	GameScene(const GameScene&) = delete;
+	GameScene& operator=(const GameScene&) = delete;
 
 	/// <summary>
-	/// 初期化処理
-	/// ゲーム開始時に一度だけ呼ばれる
-	/// モデル・カメラ・プレイヤーなどの生成を行う
+	/// 共有リソースを参照し、カメラ・マップ・各管理クラスを依存順に初期化する。
 	/// </summary>
+	/// <param name="stageManager">ステージ管理への非所有参照。シーンより長く生存すること。</param>
+	/// <param name="resourceManager">共有リソースの所有者。シーンより長く生存すること。</param>
 	void Initialize(StageManager* stageManager, ResourceManager* resourceManager);
-
 	/// <summary>
-	/// 更新処理
-	/// 毎フレーム呼ばれる
-	/// 入力処理・座標更新・当たり判定などを行う
+	/// 現在のフェーズに応じてゲームを更新し、最後にカメラとデバッグUIを更新する。
 	/// </summary>
 	void Update();
-
 	/// <summary>
-	/// 描画処理
-	/// 毎フレーム呼ばれる
-	/// 3Dモデルやプレイヤーの描画を行う
+	/// 既存の描画順序でフィールド、キャラクター、演出を描画する。
 	/// </summary>
 	void Draw();
-
-	void GenerateFieldObjects();
-
-	//全ての当たり判定を行う
-	void CheckAllCollisions();
-
-	void ChangePhase();
-
-	// ==============================
-	// ワールドトランスフォーム（ブロック用）
-	// ==============================
-
 	/// <summary>
-	/// ブロックのワールド行列を2次元配列で管理
-	/// [行][列] の形で配置されることを想定
-	///
-	/// ※ポインタ管理のため解放漏れに注意
+	/// CSVの各セルからブロック・プレイヤー・敵を生成する。初期化時に一度だけ呼ぶ。
 	/// </summary>
-	std::vector<std::vector<KamataEngine::WorldTransform*>> worldTransformBlocks_;
-
-
-	// 敵をポインタリストに
-	std::list<BaseEnemy*> enemies_;
-
-	// ヒットエフェクト
-	std::list<BaseEffect*> effects_;
-
-	// ゲームのフェーズ(型)
-	enum class Phase {
-		kFadeIn,  // フェードイン
-		kPlay,    // ゲームプレイ
-		kDeath,   // デス演出
-		kFadeOut, // フェードアウト
-	};
-
-	// ゲームのフェーズ(変数)
-	Phase phase_;
-
-	// デスフラグのgetter
-	bool IsFinished() const { return finished_; }
-
-	// エフェクトを生成
+	void GenerateFieldObjects();
+	/// <summary>
+	/// ゲーム内の衝突判定をまとめて呼び出す。現在は弾と敵の判定を担当する。
+	/// </summary>
+	void CheckAllCollisions();
+	/// <summary>
+	/// フェードやプレイヤーの死亡状態に応じてゲームのフェーズを遷移させる。
+	/// </summary>
+	void ChangePhase();
+	/// <summary>
+	/// 指定されたワールド座標に命中エフェクトを生成し、シーンの管理リストに登録する。
+	/// </summary>
+	/// <param name="position">生成位置（ワールド座標）。</param>
 	void CreateHitEffect(const KamataEngine::Vector3& position);
-
+	/// <summary>
+	/// 指定されたワールド座標にガードエフェクトを生成し、シーンの管理リストに登録する。
+	/// </summary>
+	/// <param name="position">生成位置（ワールド座標）。</param>
 	void CreateGuardEffect(const KamataEngine::Vector3& position);
-
-	// リロード要求を取得
+	/// <summary>
+	/// ゲームシーンの終了条件を満たしたか取得する。
+	/// </summary>
+	/// <returns>条件を満たす場合はtrue。</returns>
+	bool IsFinished() const { return finished_; }
+	/// <summary>
+	/// マップの再読み込み要求が発生したか取得する。
+	/// </summary>
+	/// <returns>条件を満たす場合はtrue。</returns>
 	bool IsReloadRequested() const { return reloadRequested_; }
 
+	// ==============================
+	// ゲームの進行状態
+	// ==============================
+	enum class Phase {
+		kFadeIn, // 開始演出
+		kPlay,   // 通常プレイ
+		kDeath,  // プレイヤー死亡演出
+		kFadeOut // 終了演出
+	};
+	Phase phase_ = Phase::kFadeIn;
+
+	// 既存の外部アクセスとの互換性を維持。GameSceneが解放する。
+	std::vector<std::vector<KamataEngine::WorldTransform*>> worldTransformBlocks_;
+	std::list<BaseEffect*> effects_;
+
 private:
-	// ==============================
-	// テクスチャ
-	// ==============================
-
-	// UVチェック用テクスチャ
-	uint32_t textureHandle_ = 0;
-
-	// ==============================
-	// 3Dモデル
-	// ==============================
-
-	// 共通モデル（例：プレイヤーなど）
-	KamataEngine::Model* model_ = nullptr;
-
-	// ブロック用モデル
-	KamataEngine::Model* modelBlock_ = nullptr;
-
-	// 床の3Dモデル
-	KamataEngine::Model* groundModel_ = nullptr;
-
-	// スカイドーム用モデル
-	KamataEngine::Model* modelSkydome_ = nullptr;
-
-	// プレイヤーモデル
-	KamataEngine::Model* playerModel_ = nullptr;
-
-	// アタックモデル
-	KamataEngine::Model* attackModel_ = nullptr;
-
-	// 敵モデル
-	KamataEngine::Model* enemyModel_ = nullptr;
-
-	KamataEngine::Model* shieldEnemyModel_ = nullptr;
-
-	//やられパーティクル
-	KamataEngine::Model* deathParticlesModel_ = nullptr;
-
-	// ヒットエフェクト
-	KamataEngine::Model* hitEffectModel_ = nullptr;
-
-	// ガードエフェクト
-	KamataEngine::Model* guardEffectModel_ = nullptr;
-
-	// ==============================
-	// カメラ
-	// ==============================
-
-	// 通常カメラ
-	KamataEngine::Camera camera_;
-
-	// デバッグカメラ（自由視点）
-	KamataEngine::DebugCamera* debugCamera_ = nullptr;
-
-	// デバッグカメラが有効かどうか
-	bool isDebugCameraActive_ = false;
-
-
-
-	CameraController* cameraController_ = nullptr;
-
-	// ==============================
-	// プレイヤー
-	// ==============================
-
 	/// <summary>
-	/// 自キャラクラス
-	/// ※newしている場合はdelete忘れに注意
+	/// 配置済みブロックのワールド行列を更新する。空セルは処理しない。
 	/// </summary>
-	Player* player_ = nullptr;
+	void UpdateBlocks();
+	/// <summary>
+	/// 管理中のエフェクトを更新する。ここではリストから削除しない。
+	/// </summary>
+	void UpdateEffects();
+	/// <summary>
+	/// 終了済みエフェクトを解放し、管理リストから取り除く。
+	/// </summary>
+	void RemoveDeadEffects();
+	/// <summary>
+	/// F1による切り替えと最終的な描画用カメラ行列の適用を行う。
+	/// </summary>
+	void UpdateCamera();
+	/// <summary>
+	/// Debug構成でシーン設定、衝突情報、敵情報を表示する。
+	/// </summary>
+	void DrawDebugUI();
+	/// <summary>
+	/// 弾の移動線分と敵のAABBを比較し、命中時にダメージと削除要求を設定する。
+	/// </summary>
+	void CheckBulletEnemyCollisions();
 
-	// ==============================
-	// エネミー
-	// ==============================
-	//Enemy* enemy_ = nullptr;
-
-	// ==============================
-	// やられパーティクル
-	// ==============================
-	DeathParticles* deathParticles_ = nullptr;
-
-	// ==============================
-	// skydome
-	// ==============================
-	Skydome* skydome_ = nullptr;
-
-
-	// ==============================
-	// マップチップフィールド
-	// ==============================
-	MapChipField *mapChipField_;
-
-
-	// 終了フラグ
-	bool finished_ = false;
-
-	// フェード
-	Fade* fade_ = nullptr;
-
-	// フェード時間
-	const float kFadeDuration = 1.0f;
-
-
-	// リロード要求フラグ
-	bool reloadRequested_ = false;
-
+	// 共有モデル：ResourceManagerが所有する非所有ポインタ
+	// ブロック描画用モデル
+	KamataEngine::Model* modelBlock_ = nullptr;
+	// 床描画用モデル
+	KamataEngine::Model* groundModel_ = nullptr;
+	// プレイヤー初期化用モデル
+	KamataEngine::Model* playerModel_ = nullptr;
+	// プレイヤー攻撃用モデル
+	KamataEngine::Model* attackModel_ = nullptr;
+	// 死亡演出の再初期化にも使用するモデル
+	KamataEngine::Model* deathParticlesModel_ = nullptr;
+	// 現在のステージ情報を借用する
 	StageManager* stageManager_ = nullptr;
-
-	// 床のワールドトランスフォーム
-	KamataEngine::WorldTransform groundWorldTransform_;
-
-	// ==============================
-	// 弾管理
-	// ==============================
-	BulletManager bulletManager_;
-
-	// ==============================
-	// プレイヤー射撃管理
-	// ==============================
-	PlayerShooting playerShooting_;
-
-	// ==============================
-	// リソースマネージャー
-	// ==============================
-
-	// ResourceManagerが所有するため
-	// GameSceneではdeleteしない
+	// 共有モデルを借用する。deleteしない
 	ResourceManager* resourceManager_ = nullptr;
 
+	// 所有オブジェクト。依存先を先に宣言し、逆順で破棄する。
+	// 通常カメラ。各オブジェクトが参照する
+	KamataEngine::Camera camera_;
+	// 床の位置・回転・拡大率とワールド行列
+	KamataEngine::WorldTransform groundWorldTransform_;
+	// CSVマップ情報の所有者
+	std::unique_ptr<MapChipField> mapChipField_;
+	// プレイヤーの所有者
+	std::unique_ptr<Player> player_;
+	// 自由視点カメラの所有者
+	std::unique_ptr<KamataEngine::DebugCamera> debugCamera_;
+	// 追従制御の所有者。Playerを借用する
+	std::unique_ptr<CameraController> cameraController_;
+	// プレイヤー死亡演出の所有者
+	std::unique_ptr<DeathParticles> deathParticles_;
+	// 背景モデル描画オブジェクトの所有者
+	std::unique_ptr<Skydome> skydome_;
+	// 画面遷移演出の所有者
+	std::unique_ptr<Fade> fade_;
+
+	// 弾の生成・更新・削除を担当
+	BulletManager bulletManager_;
+	// 敵の生成・更新・削除を担当
+	EnemyManager enemyManager_;
+	// 照準・射撃入力を担当。Player等を借用する
+	PlayerShooting playerShooting_;
+
+	// 自由視点の有効状態
+	bool isDebugCameraActive_ = false;
+	// シーン終了フラグ
+	bool finished_ = false;
+	// マップ再読み込み要求
+	bool reloadRequested_ = false;
+	// フェード時間（秒）
+	static constexpr float kFadeDuration = 1.0f;
+
+	// 衝突判定のデバッグ情報
+	// 直近の衝突判定で命中した弾数
+	int bulletHitCount_ = 0;
+	// 累計命中数（デバッグ操作でリセット可能）
+	int totalBulletHitCount_ = 0;
+	// 直近の衝突判定で命中があったか
+	bool isBulletHit_ = false;
+	// 命中エフェクトの生成を許可するか
+	bool isDrawBulletHitEffect_ = true;
 };

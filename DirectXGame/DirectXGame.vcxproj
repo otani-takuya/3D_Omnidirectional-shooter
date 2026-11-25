@@ -170,8 +170,13 @@
     <ClCompile Include="CameraController.cpp" />
     <ClCompile Include="DeathParticles.cpp" />
     <ClCompile Include="Enemy.cpp" />
+    <ClCompile Include="EnemyDebugUI.cpp" />
+    <ClCompile Include="EnemyManager.cpp" />
     <ClCompile Include="Fade.cpp" />
     <ClCompile Include="GameScene.cpp" />
+    <ClCompile Include="GameSceneCollision.cpp" />
+    <ClCompile Include="GameSceneRender.cpp" />
+    <ClCompile Include="GameSceneUpdate.cpp" />
     <ClCompile Include="GuardEffect.cpp" />
     <ClCompile Include="HitEffect.cpp" />
     <ClCompile Include="main.cpp" />
@@ -291,6 +296,8 @@
     <ClInclude Include="Collision.h" />
     <ClInclude Include="DeathParticles.h" />
     <ClInclude Include="Enemy.h" />
+    <ClInclude Include="EnemyDebugUI.h" />
+    <ClInclude Include="EnemyManager.h" />
     <ClInclude Include="Fade.h" />
     <ClInclude Include="GameScene.h" />
     <ClInclude Include="GuardEffect.h" />

@@ -9,16 +9,31 @@ using namespace KamataEngine;
 // ==============================
 // 初期化
 // ==============================
-void Bullet::Initialize(Model* model, const Vector3& position, const Vector3& direction) {
+void Bullet::Initialize(Model* model, const Vector3& position, const Vector3& direction, int damage) {
 
 	// モデルを保持
 	model_ = model;
+
+	// ==============================
+	// 攻撃力の初期化
+	// ==============================
+
+	// 攻撃力がマイナスにならないようにする
+	damage_ = (damage > 0) ? damage : 0;
+
+	// ==============================
+	// 命中状態の初期化
+	// ==============================
+	isHit_ = false;
 
 	// ワールド変換初期化
 	worldTransform_.Initialize();
 
 	// 弾の初期座標
 	worldTransform_.translation_ = position;
+
+	// 前フレームの座標を初期化
+	previousPosition_ = position;
 
 	// 弾の大きさ
 	worldTransform_.scale_ = {0.3f, 0.3f, 0.3f};
@@ -53,9 +68,12 @@ void Bullet::Initialize(Model* model, const Vector3& position, const Vector3& di
 	// 弾の向きを移動方向に合わせる
 	worldTransform_.rotation_.y = std::atan2(normalizedDirection.x, normalizedDirection.z);
 
-	// 初期状態
-	lifeTimer_ = 0;
+	// ==============================
+	// 弾の状態を初期化
+	// ==============================
 	isDead_ = false;
+	isHit_ = false;
+	lifeTimer_ = 0;
 
 	// ワールド行列更新
 	UpdateWorldTransform(worldTransform_);
@@ -73,9 +91,13 @@ void Bullet::Update() {
 	}
 
 	// ==============================
+	// 移動前の座標を保存
+	// ==============================
+	previousPosition_ = worldTransform_.translation_;
+
+	// ==============================
 	// 弾を移動
 	// ==============================
-
 	worldTransform_.translation_.x += velocity_.x;
 	worldTransform_.translation_.y += velocity_.y;
 	worldTransform_.translation_.z += velocity_.z;
@@ -83,21 +105,28 @@ void Bullet::Update() {
 	// ==============================
 	// 寿命管理
 	// ==============================
-
 	lifeTimer_++;
 
 	// 一定時間経過したら削除対象にする
 	if (lifeTimer_ >= kLifeTime) {
-		isDead_ = true;
+		RequestDestroy();
 		return;
 	}
 
 	// ==============================
 	// ワールド行列更新
 	// ==============================
-
 	UpdateWorldTransform(worldTransform_);
 	worldTransform_.TransferMatrix();
+}
+
+// ==============================
+// 弾の削除要求
+// ==============================
+void Bullet::RequestDestroy() {
+
+	// 弾を削除対象にする
+	isDead_ = true;
 }
 
 // ==============================

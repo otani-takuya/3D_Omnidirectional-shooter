@@ -42,6 +42,16 @@ void BaseEnemy::Initialize(Model* model, Camera* camera, const Vector3& position
 	isDead_ = false;
 	isCollisionDisabled_ = false;
 
+	// ==============================
+	// HPの初期化
+	// ==============================
+
+	// 最大HPを設定
+	maxHP_ = kDefaultMaxHP;
+
+	// 現在のHPを最大値に設定
+	hp_ = maxHP_;
+
 	// 最初は歩行状態
 	behavior_ = Behavior::kWalk;
 	behaviorRequest_ = Behavior::kUnknown;
@@ -149,6 +159,84 @@ AABB BaseEnemy::GetAABB() const {
 	aabb.max = {worldPosition.x + kEnemyWidth / 2.0f, worldPosition.y + kEnemyHeight / 2.0f, worldPosition.z + kEnemyWidth / 2.0f};
 
 	return aabb;
+}
+
+// ==============================
+// ダメージ処理
+// ==============================
+void BaseEnemy::TakeDamage(int damage) {
+
+	// 無効なダメージは受け付けない
+	if (damage <= 0) {
+		return;
+	}
+
+	// 死亡・衝突無効状態では
+	// ダメージを受け付けない
+	if (isDead_ || isCollisionDisabled_ || hp_ <= 0) {
+
+		return;
+	}
+
+	// 死亡状態への移行中も処理しない
+	if (behavior_ == Behavior::kDeath || behaviorRequest_ == Behavior::kDeath) {
+
+		return;
+	}
+
+	// ==============================
+	// HPの減少
+	// ==============================
+
+	if (damage >= hp_) {
+
+		// HPがマイナスにならないようにする
+		hp_ = 0;
+
+		// 死亡状態への遷移を要求する
+		RequestDeath();
+
+	} else {
+
+		// 攻撃力の分だけHPを減らす
+		hp_ -= damage;
+	}
+}
+
+// ==============================
+// 死亡状態への遷移を要求する
+// ==============================
+void BaseEnemy::RequestDeath() {
+
+	// すでに死亡処理が完了している場合
+	if (isDead_) {
+		return;
+	}
+
+	// すでに死亡状態の場合
+	if (behavior_ == Behavior::kDeath) {
+		return;
+	}
+
+	// すでに死亡要求が行われている場合
+	if (behaviorRequest_ == Behavior::kDeath) {
+		return;
+	}
+
+	// ==============================
+	// HPを0にする
+	// ==============================
+	hp_ = 0;
+
+	// ==============================
+	// 当たり判定を無効化する
+	// ==============================
+	isCollisionDisabled_ = true;
+
+	// ==============================
+	// 死亡状態への遷移を要求する
+	// ==============================
+	behaviorRequest_ = Behavior::kDeath;
 }
 
 // ==============================

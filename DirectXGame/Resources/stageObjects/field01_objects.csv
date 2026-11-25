@@ -1,0 +1,7 @@
+Type,X,Y,Z
+Player,0.0,0.0,0.0
+Enemy,-6.0,0.5,6.0
+Enemy,0.0,0.5,8.0
+Enemy,6.0,0.5,6.0
+ShieldEnemy,-6.0,0.5,-6.0
+ShieldEnemy,6.0,0.5,-6.0
